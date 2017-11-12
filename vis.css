@@ -1,0 +1,70 @@
+/* the true line height is 1.480em (ascent 1.160em + descent 0.320em), we ignore that! */
+body {
+	line-height: 1.0;
+	font-size: 32px;
+	font-weight: 300;
+	font-family: sans-serif;
+}
+nav {
+	position: fixed;
+	background: black;
+	top: 0;
+	left: 0;
+	right: 0;
+	text-align: center;
+	vertical-align: middle;
+	font-size: 16px;
+	padding: 0.5em 0;
+}
+nav>a {
+	color: white;
+	margin: 0 3em;
+}
+nav>select {
+	margin: 0 3em;
+}
+table {
+	table-layout: fixed;
+	border-collapse: collapse;
+	margin: 48px auto 16px auto;
+	width: 1024px; /* 32 columns x 32px */
+}
+td {
+	width: 32px;
+	max-width: 32px;
+	height: 40px;
+	max-height: 40px;
+	text-align: center;
+	padding: 0;
+	margin: 0;
+	color: transparent;
+	background: url(loading.gif) no-repeat center;
+	background-size: 24px;
+	font-weight: 300;
+	cursor: pointer;
+	transition: color 0.2s, background-color 0.2s;
+	vertical-align: top;
+	overflow: hidden;
+}
+tr.title>td {
+	background: linear-gradient(to bottom, #222, #888);
+	color: white;
+	text-align: left;
+	height: 32px;
+	max-height: 32px;
+	font-size: 16px;
+	vertical-align: middle;
+	padding: 0 0.5em;
+	cursor: default;
+}
+tr.virtual>td {
+	background: none;
+	cursor: default;
+}
+@font-face {
+	/* a font with every character replaced with X sign;
+	 * adapted but heavily rewritten from https://github.com/santhoshtr/tofudetector/ */
+	font-family: "X";
+	src: url(x.ttf);
+}
+
