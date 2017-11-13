@@ -12,7 +12,7 @@ Noto Sans SC Sliced is an experimental Simplified Chinese font family from Googl
 
 ## How to use
 
-Please note that the entire page loads lots of fonts (202 in total) and it is probably not wise to load the page from the capped connection. It does work (somehow) in mobile browsers, as long as you have enough memory. It even works in MSIE (tested with 11), but it sometimes breaks Uniscribe and the entire desktop is left with broken font cache... You have been warned.
+Please note that the entire page loads lots of font files (204 in total, as we use two weights) and it is probably not wise to load the page from the capped connection. It does work (somehow) in mobile browsers, as long as you have enough memory. It even works in MSIE (tested with 11), but it sometimes breaks Uniscribe and the entire desktop is left with broken font cache... You have been warned.
 
 The hue indicates the subset group, #<!-- -->0 through #<!-- -->101. The most important groups are #<!-- -->100 and #<!-- -->101 which contains almost 3,000 characters in daily use.
 
