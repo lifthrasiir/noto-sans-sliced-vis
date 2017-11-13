@@ -6,7 +6,7 @@ Noto Sans SC Sliced is an experimental Simplified Chinese font family from Googl
 
 *Hmm, that sounds interesting.* The [author] thought. *So what's in those subsets?* This visualization is the answer.
 
-[vis]: https://lifthrasiir.github.io/noto-sans-sliced-vis/sc.html
+[vis]: https://lifthrasiir.github.io/noto-sans-sliced-vis/sc
 [Noto Sans SC Sliced]: https://fonts.google.com/earlyaccess#Noto+Sans+SC+Sliced
 [author]: https://github.com/lifthrasiir/
 
