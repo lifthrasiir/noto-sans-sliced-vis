@@ -3,7 +3,14 @@ import re
 import base64
 import json
 
-FONT_FACE_PAT = re.compile(r"^(@font-face\{font-family:'Noto Sans SC Sliced)('.*\.(\d+)\.woff.*unicode-range:([U+\-0-9a-f,]+)[;}].*)$", re.I)
+FONT_FACE_PAT = re.compile(r"""
+    (@font-face \s* \{ \s*
+        font-family: \s* '([^']*) )( ' [^{}]*
+        \.(\d+)\.woff [^{}]+
+        unicode-range: ([U+\-0-9a-f,\s]+);
+        [^{}]*
+    \})
+""", re.I | re.X)
 URL_WO_SCHEMA_PAT = re.compile("(?<!:)//")
 BLOCKS_PAT = re.compile(r'^([0-9A-F]+)\.\.([0-9A-F]+); (.*)$')
 
@@ -33,6 +40,14 @@ def run_compressed_base64(values):
             data.append(v)
     return base64.b64encode(data)
 
+def compress_hybrid_delta(v):
+    delta = [v[0]]
+    for i, j in zip(v, v[1:]):
+        delta.append(j - i)
+    rlestart = max([-1] + [i for i in xrange(len(delta)//2) if delta[i] >= 128]) + 1
+    rleend = min([len(delta)] + [i for i in xrange(len(delta)//2, len(delta)) if delta[i] >= 128])
+    return delta[:rlestart] + [run_compressed_base64(delta[rlestart:rleend])] + delta[rleend:]
+
 def generate_supplement(jsout, blocksin, iicorein):
     blocks = []
     lastend = 0
@@ -54,12 +69,9 @@ def generate_supplement(jsout, blocksin, iicorein):
         for line in f:
             try: iicore.append(int(line[:5], 16))
             except ValueError: pass
-    iicoredelta = [iicore[0]]
-    for i, j in zip(iicore, iicore[1:]):
-        iicoredelta.append(j - i)
-    rlestart = max(i for i in xrange(len(iicoredelta)//2) if iicoredelta[i] >= 128) + 1
-    rleend = min(i for i in xrange(len(iicoredelta)//2, len(iicoredelta)) if iicoredelta[i] >= 128)
-    iicoredelta = iicoredelta[:rlestart] + [run_compressed_base64(iicoredelta[rlestart:rleend])] + iicoredelta[rleend:]
+
+    iicoredelta = compress_hybrid_delta(iicore)
+    ksx1001delta = compress_hybrid_delta([c for c in xrange(0xac00, 0xac00 + 11172) if len(unichr(c).encode('euc-kr', 'ignore')) == 2])
 
     with open(jsout, 'w') as f:
         f.write('window.uniblocks = ')
@@ -68,16 +80,21 @@ def generate_supplement(jsout, blocksin, iicorein):
         f.write('window.iicoredelta = ')
         json.dump(iicoredelta, f, separators=(',',':'))
         f.write(';\n')
+        f.write('window.ksx1001delta = ')
+        json.dump(ksx1001delta, f, separators=(',',':'))
+        f.write(';\n')
 
 def generate_data(cssout, jsonout):
     with open(cssout, 'w') as css:
         assignments = {}
-        for line in sys.stdin:
-            m = FONT_FACE_PAT.match(line)
-            if not m: continue
-            group = int(m.group(3))
-            css.write(URL_WO_SCHEMA_PAT.sub('https://', '%s g%d%s\n' % (m.group(1), group, m.group(2))))
-            for r in m.group(4).split(','):
+        fontname = None
+        for pre, name, post, idx, ranges in FONT_FACE_PAT.findall(sys.stdin.read()):
+            assert fontname is None or fontname == name, (name, fontname)
+            fontname = name
+            group = int(idx)
+            css.write(URL_WO_SCHEMA_PAT.sub('https://', '%s g%d%s\n' % (pre, group, post)))
+            for r in ranges.split(','):
+                r = r.strip()
                 assert r.startswith('U+')
                 a, sep, b = r[2:].partition('-')
                 for c in range(int(a, 16), int(b or a, 16) + 1):
@@ -96,6 +113,8 @@ def generate_data(cssout, jsonout):
 
     with open(jsonout, 'w') as f:
         json.dump({
+            'name': fontname,
+            'csspath': cssout,
             'ngroups': max(assignments.values()) + 1,
             'ranges': [dict(start=r['start'], end=r['end'], groups=run_compressed_base64(r['groups'])) for r in ranges],
         }, f, separators=(',',':'))

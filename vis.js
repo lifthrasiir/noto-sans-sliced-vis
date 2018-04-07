@@ -15,8 +15,27 @@
 		return data;
 	}
 
+	function decompress_hybrid_delta(delta) {
+		var last = 0;
+		var ret = {};
+		for (var i = 0; i < delta.length; ++i) {
+			var d = delta[i];
+			if (typeof d === 'string') {
+				d = decompress(d);
+				for (var j = 0; j < d.length; ++j) ret[last += d[j]] = true;
+			} else {
+				ret[last += d] = true;
+			}
+		}
+		return ret;
+	}
+
 	function isideograph(c) {
 		return (0x3400 <= c && c < 0x4dc0) || (0x4e00 <= c && c < 0xa000) || (0x20000 <= c && c < 0x30000);
+	}
+
+	function ishangul(c) {
+		return (0x1100 <= c && c < 0x1200) || (0x3130 <= c && c < 0x3190) || (0xa960 <= c && c < 0xa980) || (0xac00 <= c && c < 0xd800);
 	}
 
 	function fromcharcode(c) {
@@ -61,45 +80,39 @@
 				var g = groups[j-start];
 				if (!familyseen[g]) {
 					familyseen[g] = true;
-					families.push('Noto Sans SC Sliced g' + g + ':n3,n5');
+					families.push(data.name + ' g' + g + ':n3,n5');
 				}
-				teststrings['Noto Sans SC Sliced g' + g] += fromcharcode(j);
+				teststrings[data.name + ' g' + g] += fromcharcode(j);
 				codepoints.push({c: j, g: g});
 			}
 		}
 
-		// iicore is also somewhat compressed
-		var iicore = {};
-		var last = 0;
-		for (var i = 0; i < iicoredelta.length; ++i) {
-			var d = iicoredelta[i];
-			if (typeof d === 'string') {
-				d = decompress(d);
-				for (var j = 0; j < d.length; ++j) iicore[last += d[j]] = true;
-			} else {
-				iicore[last += d] = true;
-			}
-		}
+		var iicore = decompress_hybrid_delta(iicoredelta);
+		var ksx1001 = decompress_hybrid_delta(ksx1001delta);
 
 		return {
+			name: data.name,
+			csspath: data.csspath,
 			ngroups: data.ngroups,
 			families: families,
 			teststrings: teststrings,
 			codepoints: codepoints,
-			iicore: iicore
+			iicore: iicore,
+			ksx1001: ksx1001
 		};
 	}
 
-	function generatecss(ngroups) {
+	function generatecss(name, ngroups) {
+		var convertedname = name.replace(/[ _]/g, '').toLowerCase();
 		var style = [], hstyle = [];
 		for (var i = 0; i < ngroups; ++i) {
 			var hue = (i / ngroups * 360).toFixed(2);
 			hstyle.push('table.g' + i + ' td.g' + i);
-			style.push('td.g' + i + '{font-family:"Noto Sans SC Sliced g' + i + '",X;background-color:hsl(' + hue + ',40%,50%,0.1)}');
+			style.push('td.g' + i + '{font-family:"' + name + ' g' + i + '",X;background-color:hsl(' + hue + ',40%,50%,0.1)}');
 			style.push('td.g' + i + ':hover{box-shadow:0 0 5px hsl(' + hue + ',20%,30%)}');
 			style.push('table.locked.g' + i + ' td.g' + i + '{background-color:hsl(' + hue + ',40%,50%);color:white!important}');
 			style.push('table.locked.g' + i + ' td.g' + i + ':hover{box-shadow:inset 0 0 5px white!important}');
-			style.push('html.wf-notosansscslicedg' + i + '-n3-active body:not(.g' + i + ') td.g' + i + ',html.wf-notosansscslicedg' + i + '-n5-active body.g' + i + ' td.g' + i + '{color:hsl(' + hue + ',40%,50%);background-image:none}');
+			style.push('html.wf-' + convertedname + 'g' + i + '-n3-active body:not(.g' + i + ') td.g' + i + ',html.wf-' + convertedname + 'g' + i + '-n5-active body.g' + i + ' td.g' + i + '{color:hsl(' + hue + ',40%,50%);background-image:none}');
 		}
 		return style.join('') + hstyle.join(',') + '{font-weight:500}';
 	}
@@ -236,7 +249,7 @@
 	// initialize webfontloader
 	window.WebFontConfig = {
 		// hack to use early access fonts
-		custom: { families: parsed.families, testStrings: parsed.teststrings, urls: ['sc.css'] },
+		custom: { families: parsed.families, testStrings: parsed.teststrings, urls: [parsed.csspath] },
 		timeout: 3600000 // it takes a lot of time to load all the fonts, so allow for a lot of time
 	};
 	var wf = document.createElement('script'), s = document.scripts[0];
@@ -244,12 +257,14 @@
 	wf.async = true;
 	s.parentNode.insertBefore(wf, s);
 
-	document.write('<style>' + generatecss(parsed.ngroups) + '</style>');
+	document.write('<style>' + generatecss(parsed.name, parsed.ngroups) + '</style>');
 
 	var filters = {
 		all: function() { return true; },
 		ideograph: function(c) { return isideograph(c); },
-		iicore: function(c) { return parsed.iicore[c]; }
+		iicore: function(c) { return parsed.iicore[c]; },
+		hangul: function(c) { return ishangul(c); },
+		ksx1001: function(c) { return parsed.ksx1001[c]; }
 	};
 	var sortgroups = {
 		codepoint: {
